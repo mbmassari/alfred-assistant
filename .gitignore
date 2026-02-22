@@ -1,0 +1,57 @@
+# Secrets - NEVER commit real secrets
+secrets/*
+!secrets/.gitkeep
+!secrets/README.md
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Claude
+.claude/
+
+# Obsidian
+.obsidian/
+
+# Python
+__pycache__/
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Node
+node_modules/
+admin-panel/.next/
+admin-panel/out/
+
+# Docker
+*.log
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Obsidian vault data (user-specific)
+obsidian/vault/knowledge-base/*.md
+obsidian/vault/notes/*.md
+obsidian/vault/history/*.md
+obsidian/vault/calendar/*.md
+!obsidian/vault/**/.gitkeep
+
+# Data volumes
+data/

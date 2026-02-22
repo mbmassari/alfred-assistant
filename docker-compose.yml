@@ -1,0 +1,106 @@
+services:
+  # ============================================
+  # Nanobot — AI Agent
+  # ============================================
+  nanobot:
+    build:
+      context: ./nanobot
+      dockerfile: Dockerfile
+    container_name: alfred-nanobot
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    environment:
+      - NANOBOT_DEFAULT_MODEL=${NANOBOT_DEFAULT_MODEL:-openrouter/anthropic/claude-sonnet-4-20250514}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    ports:
+      - "18790:18790"
+    networks:
+      - alfred_frontend
+      - alfred_backend
+      - alfred_mcp
+    volumes:
+      - nanobot_data:/app/data
+      - ./obsidian/vault:/vault
+
+  # ============================================
+  # FastAPI Gateway
+  # ============================================
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: alfred-gateway
+    restart: unless-stopped
+    ports:
+      - "${ALFRED_GATEWAY_PORT:-8000}:8000"
+    environment:
+      - ALFRED_LOG_LEVEL=${ALFRED_LOG_LEVEL:-info}
+      - ALFRED_NANOBOT_URL=http://nanobot:18790
+    volumes:
+      - gateway_data:/data
+      - ./secrets:/run/secrets:ro
+    networks:
+      - alfred_frontend
+      - alfred_backend
+    depends_on:
+      - nanobot
+
+  # ============================================
+  # Obsidian MCP Server
+  # ============================================
+  obsidian-mcp:
+    build:
+      context: ./obsidian
+      dockerfile: Dockerfile
+    container_name: alfred-obsidian-mcp
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./obsidian/vault:/vault
+    networks:
+      - alfred_mcp
+      - alfred_frontend
+
+  # ============================================
+  # Portainer CE — Container Management
+  # ============================================
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: alfred-portainer
+    restart: unless-stopped
+    ports:
+      - "${PORTAINER_PORT:-9443}:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - alfred_frontend
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  alfred_frontend:
+    driver: bridge
+  alfred_backend:
+    driver: bridge
+    internal: true
+  alfred_mcp:
+    driver: bridge
+    internal: true
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  nanobot_data:
+  gateway_data:
+  portainer_data:
