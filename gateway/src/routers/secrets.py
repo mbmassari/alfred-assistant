@@ -20,9 +20,10 @@ router = APIRouter(
 class SecretCreate(BaseModel):
     name: str
     display_name: str
-    category: str
+    category: str = "custom"
     scope: str = "private"
-    env_var: str
+    secret_type: str = "api_key"
+    env_var: str | None = None
     value: str
 
 
@@ -37,8 +38,7 @@ async def list_secrets(
     category: str | None = None,
     session: AsyncSession = Depends(get_session),
 ):
-    """List all secret definitions with their configuration status."""
-    query = select(Secret).order_by(Secret.category, Secret.name)
+    query = select(Secret).order_by(Secret.category, Secret.display_name)
     if category:
         query = query.where(Secret.category == category)
 
@@ -52,6 +52,7 @@ async def list_secrets(
                 "display_name": s.display_name,
                 "category": s.category,
                 "scope": s.scope,
+                "secret_type": s.secret_type or "api_key",
                 "env_var": s.env_var,
                 "is_configured": s.is_configured,
                 "masked_value": secret_manager.get_masked(s.name),
@@ -67,7 +68,6 @@ async def create_secret(
     body: SecretCreate,
     session: AsyncSession = Depends(get_session),
 ):
-    """Create a new secret definition and store its value."""
     existing = await session.get(Secret, body.name)
     if existing:
         raise HTTPException(
@@ -83,6 +83,7 @@ async def create_secret(
         category=body.category,
         scope=body.scope,
         env_var=body.env_var,
+        secret_type=body.secret_type,
         is_configured=True,
     )
     session.add(secret)
@@ -97,7 +98,6 @@ async def update_secret(
     body: SecretUpdate,
     session: AsyncSession = Depends(get_session),
 ):
-    """Update a secret's value and/or metadata."""
     secret = await session.get(Secret, name)
     if not secret:
         raise HTTPException(status_code=404, detail=f"Secret '{name}' not found")
@@ -122,7 +122,6 @@ async def delete_secret(
     name: str,
     session: AsyncSession = Depends(get_session),
 ):
-    """Delete a secret's value (keeps the definition)."""
     secret = await session.get(Secret, name)
     if not secret:
         raise HTTPException(status_code=404, detail=f"Secret '{name}' not found")
@@ -140,7 +139,6 @@ async def test_secret(
     name: str,
     session: AsyncSession = Depends(get_session),
 ):
-    """Test if a secret is configured and has a non-placeholder value."""
     secret = await session.get(Secret, name)
     if not secret:
         raise HTTPException(status_code=404, detail=f"Secret '{name}' not found")

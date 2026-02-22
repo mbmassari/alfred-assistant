@@ -47,6 +47,7 @@ export interface Secret {
   display_name: string;
   category: string;
   scope: string;
+  secret_type: string;
   env_var: string;
   is_configured: boolean;
   masked_value: string | null;
@@ -63,8 +64,7 @@ export const createSecret = (data: {
   name: string;
   display_name: string;
   category: string;
-  scope: string;
-  env_var: string;
+  secret_type?: string;
   value: string;
 }) => apiFetch('/api/v1/secrets', { method: 'POST', body: JSON.stringify(data) });
 

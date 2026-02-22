@@ -13,9 +13,10 @@ class Secret(Base):
 
     name = Column(String, primary_key=True)
     display_name = Column(String, nullable=False)
-    category = Column(String, nullable=False)  # "llm", "channel", "tool", "social"
-    scope = Column(String, default="private")  # "private" or "common"
-    env_var = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    scope = Column(String, default="private")
+    env_var = Column(String, nullable=True)
+    secret_type = Column(String, default="api_key")
     is_configured = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
