@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     model_config = {"env_prefix": "ALFRED_"}
 
     # Paths
-    secrets_dir: Path = Path("/data/secrets")
+    secrets_dir: Path = Path("/run/secrets")
     db_path: Path = Path("/data/gateway.db")
 
     # Nanobot
