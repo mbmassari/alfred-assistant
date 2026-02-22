@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     gateway_port: int = 8000
 
     # CORS — Admin Panel domain(s)
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["*"]
 
     @property
     def database_url(self) -> str:

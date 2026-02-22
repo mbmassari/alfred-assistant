@@ -16,6 +16,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+      'ngrok-skip-browser-warning': 'true',
       ...options.headers,
     },
   });
@@ -37,9 +38,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 // Health
 export const getHealth = () => apiFetch<{ status: string; gateway: string; nanobot: string }>('/health');
 
-// Auth
 export const verifyAuth = () =>
-  fetch(`${GATEWAY_URL}/auth/verify`).then((r) => r.json());
+  fetch(`${GATEWAY_URL}/auth/verify`, { headers: { 'ngrok-skip-browser-warning': 'true' } }).then((r) => r.json());
 
 // Secrets
 export interface Secret {
