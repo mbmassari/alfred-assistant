@@ -17,30 +17,58 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
 
 const CATEGORY_ORDER = ['llm', 'email', 'channel', 'tool', 'social', 'custom'];
 
-const SECRET_TYPE_INFO: Record<string, { label: string; placeholder: string; icon: string }> = {
-  api_key: { label: 'API Key', placeholder: 'sk-...', icon: '🔑' },
-  token: { label: 'Token', placeholder: 'Token de acesso', icon: '🎫' },
-  password: { label: 'Senha', placeholder: '••••••••', icon: '🔒' },
-  login: { label: 'Login/Senha', placeholder: 'usuário:senha', icon: '👤' },
-  variable: { label: 'Variável', placeholder: 'Valor livre', icon: '📝' },
+const SECRET_TYPES = {
+  api_key: { label: 'API Key', icon: '🔑', fields: [{ name: 'value', label: 'Chave', placeholder: 'sk-...' }] },
+  token: { label: 'Token', icon: '🎫', fields: [{ name: 'value', label: 'Token', placeholder: 'Token de acesso' }] },
+  password: { label: 'Senha', icon: '🔒', fields: [{ name: 'value', label: 'Senha', placeholder: '••••••••' }] },
+  variable: { label: 'Variável', icon: '📝', fields: [{ name: 'value', label: 'Valor', placeholder: 'Valor livre' }] },
+  login_password: { label: 'Login e Senha', icon: '👤', fields: [{ name: 'username', label: 'Usuário/Email', placeholder: 'usuario@email.com' }, { name: 'password', label: 'Senha', placeholder: '••••••••' }] },
+  email_smtp: { label: 'Email SMTP', icon: '📧', fields: [{ name: 'email', label: 'Email', placeholder: 'alfred@gmail.com' }, { name: 'password', label: 'Senha de App', placeholder: 'xxxx xxxx xxxx xxxx' }] },
+  oauth: { label: 'OAuth', icon: '🔐', fields: [{ name: 'client_id', label: 'Client ID', placeholder: '...' }, { name: 'client_secret', label: 'Client Secret', placeholder: '...' }] },
+  webhook: { label: 'Webhook', icon: '🪝', fields: [{ name: 'value', label: 'URL', placeholder: 'https://...' }] },
 };
+
+function parseSecretValue(value: string | null, type: string): Record<string, string> {
+  if (!value) return {};
+  if (['login_password', 'email_smtp', 'oauth'].includes(type)) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return { value };
+    }
+  }
+  return { value };
+}
+
+function serializeSecretValue(data: Record<string, string>, type: string): string {
+  if (['login_password', 'email_smtp', 'oauth'].includes(type)) {
+    return JSON.stringify(data);
+  }
+  return data.value || '';
+}
+
+function getDisplayValue(secret: Secret): string {
+  const data = parseSecretValue(secret.masked_value, secret.secret_type);
+  if (data.username) return `${data.username}:***`;
+  if (data.email) return `${data.email}`;
+  if (data.client_id) return `${data.client_id?.substring(0, 8)}...`;
+  return secret.masked_value || '';
+}
 
 export default function SecretsPage() {
   const queryClient = useQueryClient();
   const secretsQuery = useQuery({ queryKey: ['secrets'], queryFn: () => getSecrets() });
 
   const [editingName, setEditingName] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [editData, setEditData] = useState<Record<string, string>>({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const [newSecret, setNewSecret] = useState({
-    name: '',
     display_name: '',
     category: 'custom',
     secret_type: 'api_key',
-    value: '',
+    fields: {} as Record<string, string>,
   });
 
   const updateMutation = useMutation({
@@ -49,12 +77,12 @@ export default function SecretsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['secrets'] });
       setEditingName(null);
-      setEditValue('');
+      setEditData({});
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: typeof newSecret) =>
+    mutationFn: (data: typeof newSecret & { name: string; value: string }) =>
       createSecret({
         name: data.name,
         display_name: data.display_name,
@@ -65,7 +93,7 @@ export default function SecretsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['secrets'] });
       setShowAddModal(false);
-      setNewSecret({ name: '', display_name: '', category: 'custom', secret_type: 'api_key', value: '' });
+      setNewSecret({ display_name: '', category: 'custom', secret_type: 'api_key', fields: {} });
     },
   });
 
@@ -84,19 +112,26 @@ export default function SecretsPage() {
 
   const startEdit = (secret: Secret) => {
     setEditingName(secret.name);
-    setEditValue('');
-    setShowPassword(false);
+    setEditData({});
   };
 
-  const saveEdit = (name: string) => {
-    if (editValue.trim()) {
-      updateMutation.mutate({ name, value: editValue });
+  const saveEdit = (secret: Secret) => {
+    const typeInfo = SECRET_TYPES[secret.secret_type as keyof typeof SECRET_TYPES] || SECRET_TYPES.api_key;
+    const hasValue = typeInfo.fields.every(f => editData[f.name]?.trim());
+    if (hasValue) {
+      const value = serializeSecretValue(editData, secret.secret_type);
+      updateMutation.mutate({ name: secret.name, value });
     }
   };
 
   const handleCreate = () => {
-    if (newSecret.name && newSecret.display_name && newSecret.value) {
-      createMutation.mutate(newSecret);
+    const name = newSecret.display_name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    const typeInfo = SECRET_TYPES[newSecret.secret_type as keyof typeof SECRET_TYPES] || SECRET_TYPES.api_key;
+    const hasValue = typeInfo.fields.every(f => newSecret.fields[f.name]?.trim());
+    
+    if (name && newSecret.display_name && hasValue) {
+      const value = serializeSecretValue(newSecret.fields, newSecret.secret_type);
+      createMutation.mutate({ ...newSecret, name, value });
     }
   };
 
@@ -139,7 +174,7 @@ export default function SecretsPage() {
 
             <div className="space-y-3">
               {secrets.map((secret) => {
-                const typeInfo = SECRET_TYPE_INFO[secret.secret_type || 'api_key'] || SECRET_TYPE_INFO.api_key;
+                const typeInfo = SECRET_TYPES[secret.secret_type as keyof typeof SECRET_TYPES] || SECRET_TYPES.api_key;
                 const isEditing = editingName === secret.name;
 
                 return (
@@ -154,35 +189,31 @@ export default function SecretsPage() {
                         <div className="flex items-center gap-2">
                           <span>{typeInfo.icon}</span>
                           <p className="font-medium text-gray-900">{secret.display_name}</p>
+                          <span className="text-xs text-gray-400">({typeInfo.label})</span>
                         </div>
-                        <div className="relative">
-                          <input
-                            type={showPassword ? 'text' : 'password'}
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            placeholder={typeInfo.placeholder}
-                            autoFocus
-                            onKeyDown={(e) => e.key === 'Enter' && saveEdit(secret.name)}
-                            className="w-full px-3 py-2 border rounded-lg text-sm pr-10"
-                          />
+                        {typeInfo.fields.map((field) => (
+                          <div key={field.name}>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+                            <input
+                              type={field.name.includes('password') || field.name.includes('secret') ? 'password' : 'text'}
+                              value={editData[field.name] || ''}
+                              onChange={(e) => setEditData({ ...editData, [field.name]: e.target.value })}
+                              placeholder={field.placeholder}
+                              autoFocus={field.name === typeInfo.fields[0].name}
+                              className="w-full px-3 py-2 border rounded-lg text-sm"
+                            />
+                          </div>
+                        ))}
+                        <div className="flex gap-2 pt-2">
                           <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          >
-                            {showPassword ? '🙈' : '👁️'}
-                          </button>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => saveEdit(secret.name)}
-                            disabled={updateMutation.isPending || !editValue.trim()}
+                            onClick={() => saveEdit(secret)}
+                            disabled={updateMutation.isPending}
                             className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm disabled:opacity-50"
                           >
                             Salvar
                           </button>
                           <button
-                            onClick={() => { setEditingName(null); setEditValue(''); }}
+                            onClick={() => { setEditingName(null); setEditData({}); }}
                             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm"
                           >
                             Cancelar
@@ -197,9 +228,10 @@ export default function SecretsPage() {
                             <div className="flex items-center gap-2">
                               <span className="text-sm">{typeInfo.icon}</span>
                               <p className="font-medium text-gray-900">{secret.display_name}</p>
+                              <span className="text-xs text-gray-400">({typeInfo.label})</span>
                             </div>
-                            {secret.is_configured && secret.masked_value && (
-                              <p className="text-xs text-gray-400 font-mono">{secret.masked_value}</p>
+                            {secret.is_configured && (
+                              <p className="text-xs text-gray-400 font-mono">{getDisplayValue(secret)}</p>
                             )}
                             {secret.updated_at && (
                               <p className="text-xs text-gray-400">{formatDate(secret.updated_at)}</p>
@@ -257,8 +289,8 @@ export default function SecretsPage() {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4">Nova Credencial</h3>
             <div className="space-y-4">
               <div>
@@ -266,10 +298,7 @@ export default function SecretsPage() {
                 <input
                   type="text"
                   value={newSecret.display_name}
-                  onChange={(e) => {
-                    const name = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-                    setNewSecret({ ...newSecret, display_name: e.target.value, name: name || newSecret.name });
-                  }}
+                  onChange={(e) => setNewSecret({ ...newSecret, display_name: e.target.value })}
                   placeholder="Ex: Minha API"
                   className="w-full px-3 py-2 border rounded-lg text-sm"
                 />
@@ -293,29 +322,31 @@ export default function SecretsPage() {
                 <label className="block text-sm font-medium mb-1">Tipo</label>
                 <select
                   value={newSecret.secret_type}
-                  onChange={(e) => setNewSecret({ ...newSecret, secret_type: e.target.value })}
+                  onChange={(e) => setNewSecret({ ...newSecret, secret_type: e.target.value, fields: {} })}
                   className="w-full px-3 py-2 border rounded-lg text-sm"
                 >
-                  {Object.entries(SECRET_TYPE_INFO).map(([key, info]) => (
+                  {Object.entries(SECRET_TYPES).map(([key, info]) => (
                     <option key={key} value={key}>{info.icon} {info.label}</option>
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Valor</label>
-                <input
-                  type="password"
-                  value={newSecret.value}
-                  onChange={(e) => setNewSecret({ ...newSecret, value: e.target.value })}
-                  placeholder={SECRET_TYPE_INFO[newSecret.secret_type]?.placeholder}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                />
-              </div>
+              {SECRET_TYPES[newSecret.secret_type as keyof typeof SECRET_TYPES]?.fields.map((field) => (
+                <div key={field.name}>
+                  <label className="block text-sm font-medium mb-1">{field.label}</label>
+                  <input
+                    type={field.name.includes('password') || field.name.includes('secret') ? 'password' : 'text'}
+                    value={newSecret.fields[field.name] || ''}
+                    onChange={(e) => setNewSecret({ ...newSecret, fields: { ...newSecret.fields, [field.name]: e.target.value } })}
+                    placeholder={field.placeholder}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  />
+                </div>
+              ))}
             </div>
             <div className="flex gap-2 mt-6">
               <button
                 onClick={handleCreate}
-                disabled={createMutation.isPending || !newSecret.display_name || !newSecret.value}
+                disabled={createMutation.isPending || !newSecret.display_name}
                 className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm disabled:opacity-50"
               >
                 {createMutation.isPending ? 'Salvando...' : 'Salvar'}
