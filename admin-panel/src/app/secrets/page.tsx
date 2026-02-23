@@ -89,7 +89,7 @@ export default function SecretsPage() {
   const [newSecret, setNewSecret] = useState({
     display_name: '',
     category: 'custom',
-    fields: [{ name: 'valor', label: 'Valor', type: 'password' as const, placeholder: '' }],
+    fields: [{ name: 'valor', label: 'Valor', type: 'password' as 'text' | 'password', placeholder: '' }],
   });
   const [newFieldValues, setNewFieldValues] = useState<Record<string, string>>({});
 
