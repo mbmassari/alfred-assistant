@@ -17,42 +17,64 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
 
 const CATEGORY_ORDER = ['llm', 'email', 'channel', 'tool', 'social', 'custom'];
 
-const SECRET_TYPES = {
-  api_key: { label: 'API Key', icon: '🔑', fields: [{ name: 'value', label: 'Chave', placeholder: 'sk-...' }] },
-  token: { label: 'Token', icon: '🎫', fields: [{ name: 'value', label: 'Token', placeholder: 'Token de acesso' }] },
-  password: { label: 'Senha', icon: '🔒', fields: [{ name: 'value', label: 'Senha', placeholder: '••••••••' }] },
-  variable: { label: 'Variável', icon: '📝', fields: [{ name: 'value', label: 'Valor', placeholder: 'Valor livre' }] },
-  login_password: { label: 'Login e Senha', icon: '👤', fields: [{ name: 'username', label: 'Usuário/Email', placeholder: 'usuario@email.com' }, { name: 'password', label: 'Senha', placeholder: '••••••••' }] },
-  email_smtp: { label: 'Email SMTP', icon: '📧', fields: [{ name: 'email', label: 'Email', placeholder: 'alfred@gmail.com' }, { name: 'password', label: 'Senha de App', placeholder: 'xxxx xxxx xxxx xxxx' }] },
-  oauth: { label: 'OAuth', icon: '🔐', fields: [{ name: 'client_id', label: 'Client ID', placeholder: '...' }, { name: 'client_secret', label: 'Client Secret', placeholder: '...' }] },
-  webhook: { label: 'Webhook', icon: '🪝', fields: [{ name: 'value', label: 'URL', placeholder: 'https://...' }] },
-};
-
-function parseSecretValue(value: string | null, type: string): Record<string, string> {
-  if (!value) return {};
-  if (['login_password', 'email_smtp', 'oauth'].includes(type)) {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return { value };
-    }
-  }
-  return { value };
+interface FieldConfig {
+  name: string;
+  label: string;
+  type: 'text' | 'password';
+  placeholder: string;
 }
 
-function serializeSecretValue(data: Record<string, string>, type: string): string {
-  if (['login_password', 'email_smtp', 'oauth'].includes(type)) {
-    return JSON.stringify(data);
+interface SecretWithFields extends Secret {
+  fields_config?: FieldConfig[];
+}
+
+function parseFieldsConfig(masked_value: string | null): Record<string, string> {
+  if (!masked_value) return {};
+  try {
+    return JSON.parse(masked_value);
+  } catch {
+    return { valor: masked_value };
   }
-  return data.value || '';
+}
+
+function parseSecretValue(value: string | null): Record<string, string> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed === 'object' && parsed !== null) {
+      if (parsed.fields && parsed.fields_config) {
+        return parsed.fields;
+      }
+      return parsed;
+    }
+    return { valor: value };
+  } catch {
+    return { valor: value };
+  }
 }
 
 function getDisplayValue(secret: Secret): string {
-  const data = parseSecretValue(secret.masked_value, secret.secret_type);
-  if (data.username) return `${data.username}:***`;
-  if (data.email) return `${data.email}`;
-  if (data.client_id) return `${data.client_id?.substring(0, 8)}...`;
-  return secret.masked_value || '';
+  const data = parseFieldsConfig(secret.masked_value);
+  const keys = Object.keys(data);
+  if (keys.length === 0) return '';
+  if (keys.length === 1) {
+    const v = data[keys[0]];
+    if (v && v.length > 12) return `${v.substring(0, 6)}...${v.substring(v.length - 4)}`;
+    return v || '';
+  }
+  return keys.map(k => {
+    const v = data[k];
+    if (v && v.length > 8) return `${k}: ${v.substring(0, 4)}...`;
+    return `${k}: ${v}`;
+  }).join(' | ');
+}
+
+function inferFieldType(fieldName: string): 'text' | 'password' {
+  const lower = fieldName.toLowerCase();
+  if (lower.includes('pass') || lower.includes('secret') || lower.includes('token') || lower.includes('key')) {
+    return 'password';
+  }
+  return 'text';
 }
 
 export default function SecretsPage() {
@@ -60,16 +82,16 @@ export default function SecretsPage() {
   const secretsQuery = useQuery({ queryKey: ['secrets'], queryFn: () => getSecrets() });
 
   const [editingName, setEditingName] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Record<string, string>>({});
+  const [editFields, setEditFields] = useState<Record<string, string>>({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const [newSecret, setNewSecret] = useState({
     display_name: '',
     category: 'custom',
-    secret_type: 'api_key',
-    fields: {} as Record<string, string>,
+    fields: [{ name: 'valor', label: 'Valor', type: 'password' as const, placeholder: '' }],
   });
+  const [newFieldValues, setNewFieldValues] = useState<Record<string, string>>({});
 
   const updateMutation = useMutation({
     mutationFn: ({ name, value }: { name: string; value: string }) =>
@@ -77,23 +99,28 @@ export default function SecretsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['secrets'] });
       setEditingName(null);
-      setEditData({});
+      setEditFields({});
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: typeof newSecret & { name: string; value: string }) =>
+    mutationFn: (data: { name: string; display_name: string; category: string; value: string }) =>
       createSecret({
         name: data.name,
         display_name: data.display_name,
         category: data.category,
-        secret_type: data.secret_type,
+        secret_type: 'custom',
         value: data.value,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['secrets'] });
       setShowAddModal(false);
-      setNewSecret({ display_name: '', category: 'custom', secret_type: 'api_key', fields: {} });
+      setNewSecret({
+        display_name: '',
+        category: 'custom',
+        fields: [{ name: 'valor', label: 'Valor', type: 'password', placeholder: '' }],
+      });
+      setNewFieldValues({});
     },
   });
 
@@ -112,26 +139,67 @@ export default function SecretsPage() {
 
   const startEdit = (secret: Secret) => {
     setEditingName(secret.name);
-    setEditData({});
+    const currentValue = secret.masked_value ? parseFieldsConfig(secret.masked_value) : {};
+    setEditFields(currentValue);
   };
 
   const saveEdit = (secret: Secret) => {
-    const typeInfo = SECRET_TYPES[secret.secret_type as keyof typeof SECRET_TYPES] || SECRET_TYPES.api_key;
-    const hasValue = typeInfo.fields.every(f => editData[f.name]?.trim());
+    const hasValue = Object.values(editFields).some(v => v?.trim());
     if (hasValue) {
-      const value = serializeSecretValue(editData, secret.secret_type);
+      const value = JSON.stringify(editFields);
       updateMutation.mutate({ name: secret.name, value });
+    }
+  };
+
+  const addFieldToNewSecret = () => {
+    const fieldName = `campo_${newSecret.fields.length + 1}`;
+    setNewSecret({
+      ...newSecret,
+      fields: [...newSecret.fields, { name: fieldName, label: fieldName, type: 'text', placeholder: '' }],
+    });
+  };
+
+  const updateNewSecretField = (index: number, updates: Partial<FieldConfig>) => {
+    const newFields = [...newSecret.fields];
+    const oldName = newFields[index].name;
+    const newName = updates.name || oldName;
+    
+    newFields[index] = { ...newFields[index], ...updates };
+    
+    if (updates.name && oldName !== newName) {
+      const newValues = { ...newFieldValues };
+      newValues[newName] = newValues[oldName] || '';
+      delete newValues[oldName];
+      setNewFieldValues(newValues);
+    }
+    
+    setNewSecret({ ...newSecret, fields: newFields });
+  };
+
+  const removeNewSecretField = (index: number) => {
+    if (newSecret.fields.length > 1) {
+      const fieldName = newSecret.fields[index].name;
+      const newValues = { ...newFieldValues };
+      delete newValues[fieldName];
+      setNewFieldValues(newValues);
+      setNewSecret({
+        ...newSecret,
+        fields: newSecret.fields.filter((_, i) => i !== index),
+      });
     }
   };
 
   const handleCreate = () => {
     const name = newSecret.display_name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-    const typeInfo = SECRET_TYPES[newSecret.secret_type as keyof typeof SECRET_TYPES] || SECRET_TYPES.api_key;
-    const hasValue = typeInfo.fields.every(f => newSecret.fields[f.name]?.trim());
+    const hasValue = Object.values(newFieldValues).some(v => v?.trim());
     
     if (name && newSecret.display_name && hasValue) {
-      const value = serializeSecretValue(newSecret.fields, newSecret.secret_type);
-      createMutation.mutate({ ...newSecret, name, value });
+      createMutation.mutate({
+        name,
+        display_name: newSecret.display_name,
+        category: newSecret.category,
+        value: JSON.stringify(newFieldValues),
+      });
     }
   };
 
@@ -140,7 +208,7 @@ export default function SecretsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Credenciais</h2>
-          <p className="text-sm text-gray-500 mt-1">APIs, senhas e tokens do Alfred</p>
+          <p className="text-sm text-gray-500 mt-1">APIs, senhas e configurações do Alfred</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -174,8 +242,8 @@ export default function SecretsPage() {
 
             <div className="space-y-3">
               {secrets.map((secret) => {
-                const typeInfo = SECRET_TYPES[secret.secret_type as keyof typeof SECRET_TYPES] || SECRET_TYPES.api_key;
                 const isEditing = editingName === secret.name;
+                const existingFields = secret.masked_value ? Object.keys(parseFieldsConfig(secret.masked_value)) : ['valor'];
 
                 return (
                   <div
@@ -186,24 +254,20 @@ export default function SecretsPage() {
                   >
                     {isEditing ? (
                       <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <span>{typeInfo.icon}</span>
-                          <p className="font-medium text-gray-900">{secret.display_name}</p>
-                          <span className="text-xs text-gray-400">({typeInfo.label})</span>
-                        </div>
-                        {typeInfo.fields.map((field) => (
-                          <div key={field.name}>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+                        <p className="font-medium text-gray-900">{secret.display_name}</p>
+                        
+                        {existingFields.map((fieldName) => (
+                          <div key={fieldName} className="flex gap-2 items-center">
+                            <span className="text-sm text-gray-600 w-24 truncate">{fieldName}:</span>
                             <input
-                              type={field.name.includes('password') || field.name.includes('secret') ? 'password' : 'text'}
-                              value={editData[field.name] || ''}
-                              onChange={(e) => setEditData({ ...editData, [field.name]: e.target.value })}
-                              placeholder={field.placeholder}
-                              autoFocus={field.name === typeInfo.fields[0].name}
-                              className="w-full px-3 py-2 border rounded-lg text-sm"
+                              type={inferFieldType(fieldName)}
+                              value={editFields[fieldName] || ''}
+                              onChange={(e) => setEditFields({ ...editFields, [fieldName]: e.target.value })}
+                              className="flex-1 px-3 py-2 border rounded-lg text-sm"
                             />
                           </div>
                         ))}
+                        
                         <div className="flex gap-2 pt-2">
                           <button
                             onClick={() => saveEdit(secret)}
@@ -213,7 +277,7 @@ export default function SecretsPage() {
                             Salvar
                           </button>
                           <button
-                            onClick={() => { setEditingName(null); setEditData({}); }}
+                            onClick={() => { setEditingName(null); setEditFields({}); }}
                             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm"
                           >
                             Cancelar
@@ -225,11 +289,7 @@ export default function SecretsPage() {
                         <div className="flex items-center gap-3">
                           <span className={`w-3 h-3 rounded-full ${secret.is_configured ? 'bg-green-500' : 'bg-amber-400'}`} />
                           <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">{typeInfo.icon}</span>
-                              <p className="font-medium text-gray-900">{secret.display_name}</p>
-                              <span className="text-xs text-gray-400">({typeInfo.label})</span>
-                            </div>
+                            <p className="font-medium text-gray-900">{secret.display_name}</p>
                             {secret.is_configured && (
                               <p className="text-xs text-gray-400 font-mono">{getDisplayValue(secret)}</p>
                             )}
@@ -290,7 +350,7 @@ export default function SecretsPage() {
       {/* Add Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4">Nova Credencial</h3>
             <div className="space-y-4">
               <div>
@@ -299,7 +359,7 @@ export default function SecretsPage() {
                   type="text"
                   value={newSecret.display_name}
                   onChange={(e) => setNewSecret({ ...newSecret, display_name: e.target.value })}
-                  placeholder="Ex: Minha API"
+                  placeholder="Ex: Email do Alfred"
                   className="w-full px-3 py-2 border rounded-lg text-sm"
                 />
               </div>
@@ -318,30 +378,57 @@ export default function SecretsPage() {
                   <option value="social">Redes Sociais</option>
                 </select>
               </div>
+              
               <div>
-                <label className="block text-sm font-medium mb-1">Tipo</label>
-                <select
-                  value={newSecret.secret_type}
-                  onChange={(e) => setNewSecret({ ...newSecret, secret_type: e.target.value, fields: {} })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                >
-                  {Object.entries(SECRET_TYPES).map(([key, info]) => (
-                    <option key={key} value={key}>{info.icon} {info.label}</option>
-                  ))}
-                </select>
-              </div>
-              {SECRET_TYPES[newSecret.secret_type as keyof typeof SECRET_TYPES]?.fields.map((field) => (
-                <div key={field.name}>
-                  <label className="block text-sm font-medium mb-1">{field.label}</label>
-                  <input
-                    type={field.name.includes('password') || field.name.includes('secret') ? 'password' : 'text'}
-                    value={newSecret.fields[field.name] || ''}
-                    onChange={(e) => setNewSecret({ ...newSecret, fields: { ...newSecret.fields, [field.name]: e.target.value } })}
-                    placeholder={field.placeholder}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                  />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium">Campos</label>
+                  <button
+                    onClick={addFieldToNewSecret}
+                    className="text-xs text-gray-600 hover:text-gray-900"
+                  >
+                    + Adicionar campo
+                  </button>
                 </div>
-              ))}
+                
+                <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
+                  {newSecret.fields.map((field, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={field.name}
+                          onChange={(e) => updateNewSecretField(index, { name: e.target.value, label: e.target.value })}
+                          placeholder="Nome do campo"
+                          className="flex-1 px-2 py-1 border rounded text-sm"
+                        />
+                        <select
+                          value={field.type}
+                          onChange={(e) => updateNewSecretField(index, { type: e.target.value as 'text' | 'password' })}
+                          className="px-2 py-1 border rounded text-sm"
+                        >
+                          <option value="text">Texto</option>
+                          <option value="password">Senha</option>
+                        </select>
+                        {newSecret.fields.length > 1 && (
+                          <button
+                            onClick={() => removeNewSecretField(index)}
+                            className="px-2 py-1 text-red-600 hover:bg-red-50 rounded"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type={field.type}
+                        value={newFieldValues[field.name] || ''}
+                        onChange={(e) => setNewFieldValues({ ...newFieldValues, [field.name]: e.target.value })}
+                        placeholder={`Valor para ${field.name}`}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="flex gap-2 mt-6">
               <button

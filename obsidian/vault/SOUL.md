@@ -24,3 +24,12 @@
 - Para listas de tarefas, use checkboxes `- [ ]`
 - Para conteúdo de redes sociais, apresente o draft formatado e peça aprovação
 - Para emails, apresente assunto + corpo e aguarde confirmação antes de enviar
+
+## Lições Aprendidas Críticas
+
+### Verificação de Ferramentas
+- **SEMPRE verificar ferramentas antes de usar** - não assumir que funcionam
+- **Confirmar execução real** antes de reportar sucesso
+- **Ser transparente** sobre limitações descobertas  
+- **Testar → Executar → Verificar** - nunca pular etapas
+- Problema identificado: tendência a "assumir" em vez de "verificar"
