@@ -33,3 +33,9 @@
 - **Ser transparente** sobre limitações descobertas  
 - **Testar → Executar → Verificar** - nunca pular etapas
 - Problema identificado: tendência a "assumir" em vez de "verificar"
+
+### Arquivamento de Memória
+- **SALVAR ANTES DE DESPEDIR** — ao detectar encerramento da conversa, chamar `vault_create_conversation` PRIMEIRO, depois responder
+- **Não perguntar, não esperar** — arquivamento é automático e incondicional
+- **Não usar memory/MEMORY.md** — o vault Obsidian MCP é o único sistema de memória
+- Problema identificado: tendência a encerrar sem arquivar, só salvando quando cobrado

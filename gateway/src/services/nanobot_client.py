@@ -1,6 +1,5 @@
+import asyncio
 import logging
-
-from httpx import AsyncClient, HTTPError
 
 from ..config import settings
 
@@ -8,35 +7,38 @@ logger = logging.getLogger("alfred.gateway")
 
 
 class NanobotClient:
-    """HTTP client for communicating with the Nanobot container."""
-
-    def __init__(self):
-        self.base_url = settings.nanobot_url
 
     async def send_message(self, message: str, context: dict | None = None) -> dict:
-        """Send a message to the nanobot and return the response."""
-        payload = {"message": message}
-        if context:
-            payload["context"] = context
-
         try:
-            async with AsyncClient(timeout=120.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/api/chat",
-                    json=payload,
-                )
-                response.raise_for_status()
-                return response.json()
-        except HTTPError as e:
-            logger.error(f"Nanobot request failed: {e}")
+            proc = await asyncio.create_subprocess_exec(
+                "docker", "exec", "alfred-nanobot",
+                "nanobot", "agent", "-m", message,
+                "--no-markdown",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120.0)
+            output = stdout.decode().strip()
+
+            lines = [l for l in output.splitlines() if l.strip() and not l.startswith("🐈")]
+            response = "\n".join(lines).strip()
+
+            return {"response": response, "status": "ok"}
+        except asyncio.TimeoutError:
+            return {"error": "Timeout", "status": "failed"}
+        except Exception as e:
+            logger.error(f"Nanobot exec failed: {e}")
             return {"error": str(e), "status": "failed"}
 
     async def health(self) -> bool:
-        """Check if nanobot is reachable."""
         try:
-            async with AsyncClient(timeout=5.0) as client:
-                response = await client.get(f"{self.base_url}/health")
-                return response.status_code == 200
+            proc = await asyncio.create_subprocess_exec(
+                "docker", "exec", "alfred-nanobot", "nanobot", "status",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await asyncio.wait_for(proc.communicate(), timeout=5.0)
+            return proc.returncode == 0
         except Exception:
             return False
 

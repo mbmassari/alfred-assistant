@@ -2,6 +2,13 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Install docker CLI
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates \
+    && curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.3.1.tgz \
+    | tar xz --strip-components=1 -C /usr/local/bin docker/docker \
+    && apt-get remove -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies first (better layer caching)
 COPY pyproject.toml .
 RUN pip install --no-cache-dir \

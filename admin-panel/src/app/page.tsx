@@ -14,8 +14,9 @@ export default function DashboardPage() {
 
   const messageMutation = useMutation({
     mutationFn: (msg: string) => sendMessage(msg),
-    onSuccess: (data) => {
-      setResponse(JSON.stringify(data, null, 2));
+    onSuccess: (data: Record<string, unknown>) => {
+      const text = typeof data.response === 'string' ? data.response : JSON.stringify(data, null, 2);
+      setResponse(text);
       setMessage('');
     },
     onError: (err) => {
@@ -74,9 +75,9 @@ export default function DashboardPage() {
         </form>
 
         {response && (
-          <pre className="mt-4 p-4 bg-gray-50 rounded-md text-sm overflow-x-auto whitespace-pre-wrap border">
+          <div className="mt-4 p-4 bg-gray-50 rounded-md text-sm whitespace-pre-wrap border border-gray-200">
             {response}
-          </pre>
+          </div>
         )}
       </div>
     </Shell>
