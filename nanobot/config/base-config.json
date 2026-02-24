@@ -6,13 +6,13 @@
   },
   "agents": {
     "defaults": {
-      "model": "openrouter/anthropic/claude-sonnet-4"
+      "model": "openrouter/anthropic/claude-sonnet-4-20250514"
     }
   },
   "channels": {
     "telegram": {
       "enabled": true,
-      "token": "7776137769:AAHt6p9h9s0i7MFXQ2yELVhCNnenifLIXOA"
+      "token": "REPLACE_ME"
     }
   }
 }

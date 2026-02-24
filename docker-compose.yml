@@ -17,6 +17,7 @@ services:
           memory: 1G
     environment:
       - NANOBOT_DEFAULT_MODEL=${NANOBOT_DEFAULT_MODEL:-openrouter/anthropic/claude-sonnet-4-20250514}
+      - NANOBOT_AGENTS__DEFAULTS__WORKSPACE=/vault
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     ports:

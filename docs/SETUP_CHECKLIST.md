@@ -20,7 +20,7 @@ Documento de progresso para retomar a configuração do projeto.
 - [x] `.gitignore` configurado (secrets e `.env` protegidos)
 - [ ] Criar conta na [OpenRouter](https://openrouter.ai) e gerar uma API key
 - [ ] Preencher `secrets/openrouter_api_key` com a chave real
-- [ ] Preencher `nanobot/workspace/USER.md` com nome e preferências pessoais
+- [ ] Preencher `obsidian/vault/USER.md` com nome e preferências pessoais
 
 > **Secrets opcionais** — preencher conforme for habilitando cada funcionalidade:
 > `brave_search_api_key`, `email_imap_password`, `email_smtp_password`,
@@ -55,10 +55,10 @@ Estratégia escolhida: **Cloudflare Tunnel** (seguro, gratuito, sem abrir portas
 
 ## Fase 4 — GitHub + Vercel
 
-- [ ] `git init` na raiz do projeto
-- [ ] `git add .` e revisar o que será commitado (confirmar que secrets NÃO estão incluídos)
-- [ ] `git commit -m "chore: initial project setup"`
-- [ ] Criar repositório no GitHub e fazer push
+- [x] `git init` na raiz do projeto
+- [x] `git add .` e revisar o que será commitado (confirmar que secrets NÃO estão incluídos)
+- [x] `git commit -m "chore: initial project setup"`
+- [x] Criar repositório no GitHub e fazer push
 - [ ] Conectar repositório à Vercel (importar projeto, diretório raiz: `admin-panel/`)
 - [ ] Configurar variável de ambiente na Vercel: `NEXT_PUBLIC_GATEWAY_URL=https://<url-publica>`
 - [ ] Fazer deploy e verificar que o build passa

@@ -15,10 +15,8 @@
 - Only the gateway and Portainer are exposed to the host
 
 ### Nanobot Egress Firewall
-- iptables allowlist in `entrypoint.sh`
-- Only whitelisted domains are reachable (OpenRouter, Gmail, Telegram, etc.)
-- Default policy: DROP all other outbound traffic
-- Container has `NET_ADMIN` capability for iptables configuration
+- iptables allowlist planned in `entrypoint.sh` (currently disabled — TODO)
+- Container has `NET_ADMIN` capability reserved for future iptables configuration
 
 ## Secret Management
 
@@ -30,7 +28,7 @@
 ## Container Security
 
 - **Resource limits**: 1 CPU, 1GB RAM for Nanobot
-- **Workspace restriction**: `restrictToWorkspace: true` prevents file access outside `/app/workspace`
+- **Workspace restriction**: `restrictToWorkspace: true` prevents file access outside `/vault`
 - **Read-only secrets mount**: Gateway mounts `secrets/` as `:ro`
 
 ## HTTPS

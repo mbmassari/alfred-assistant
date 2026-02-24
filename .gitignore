@@ -46,11 +46,14 @@ Thumbs.db
 *.swp
 *.swo
 
-# Obsidian vault data (user-specific)
+# Obsidian vault data (user-specific, not versioned)
 obsidian/vault/knowledge-base/*.md
+obsidian/vault/conhecimento/*.md
 obsidian/vault/notes/*.md
 obsidian/vault/history/*.md
 obsidian/vault/calendar/*.md
+obsidian/vault/diarios/*.md
+obsidian/vault/pessoas/*.md
 !obsidian/vault/**/.gitkeep
 
 # Data volumes

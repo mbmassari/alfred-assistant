@@ -50,20 +50,14 @@ with open(output_path, 'w') as f:
 print('Config written successfully')
 "
 
-# Create a writable workspace directory
-mkdir -p /root/.nanobot/workspace
-
-# Link app workspace files to nanobot workspace
-for file in /app/workspace/*.md; do
-    if [ -f "$file" ] && [ ! -f "/root/.nanobot/workspace/$(basename $file)" ]; then
-        cp "$file" /root/.nanobot/workspace/
-    fi
-done
-
-# If vault is mounted at /vault, link it
+# O workspace do nanobot é o vault do Obsidian (/vault), configurado via
+# NANOBOT_AGENTS__DEFAULTS__WORKSPACE=/vault no docker-compose.yml.
+# Skills, bootstrap files (AGENTS.md, SOUL.md, USER.md) e memória ficam todos em /vault.
 if [ -d /vault ]; then
-    ln -sf /vault /root/.nanobot/vault
-    echo "Vault linked to /root/.nanobot/vault"
+    echo "Vault found at /vault — workspace is ready."
+else
+    echo "ERROR: /vault not mounted. Check docker-compose volumes."
+    exit 1
 fi
 
 echo ""

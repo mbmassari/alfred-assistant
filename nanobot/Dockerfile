@@ -9,8 +9,6 @@ RUN pip install --no-cache-dir nanobot-ai
 WORKDIR /app
 
 COPY config/ ./config/
-COPY workspace/ ./workspace/
-COPY skills/ ./skills/
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

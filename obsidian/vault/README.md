@@ -5,16 +5,20 @@ Este é o **vault de memória persistente** do assistente Alfred.
 ## Estrutura
 
 ```
-alfred/
+vault/
 ├── alfred.md              # Índice principal
-├── diarios/               # Conversas diárias
+├── AGENTS.md              # System prompt do Alfred
+├── SOUL.md                # Personalidade e comportamento
+├── USER.md                # Preferências do usuário
+├── diarios/               # Conversas diárias (não versionado)
 │   └── YYYY-MM-DD-titulo.md
-├── pessoas/               # Pessoas conhecidas
-├── projetos/              # Projetos ativos
-├── conhecimento/          # Base de conhecimento
-├── decisoes/              # Decisões importantes
-├── referencias/           # Links e referências
-└── templates/             # Templates Obsidian
+├── pessoas/               # Pessoas conhecidas (não versionado)
+├── conhecimento/          # Base de conhecimento (não versionado)
+├── skills/                # Skills do Alfred (calendar, instagram, linkedin...)
+├── templates/             # Templates Obsidian
+├── notes/                 # Notas rápidas e drafts (não versionado)
+├── calendar/              # Cache de eventos do Google Calendar (não versionado)
+└── history/               # Histórico geral (não versionado)
 ```
 
 ## Frontmatter

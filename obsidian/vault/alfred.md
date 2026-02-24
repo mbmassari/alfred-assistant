@@ -14,10 +14,9 @@ Este é o **vault pessoal do Alfred** — o teu assistente pessoal AI. Aqui fica
 
 - [[diarios/]] — Conversas diárias
 - [[pessoas/]] — Pessoas e interações
-- [[projetos/]] — Projetos e tarefas
 - [[conhecimento/]] — Base de conhecimento
-- [[decisoes/]] — Decisões importantes
-- [[referencias/]] — Referências e links
+- [[skills/]] — Skills do Alfred
+- [[templates/]] — Templates de conteúdo
 
 ---
 
@@ -92,8 +91,8 @@ LIMIT 30
 
 1. **Cada conversa** cria uma nota em `diarios/` com frontmatter automático
 2. **Pessoas conhecidas** vão para `pessoas/` com wiki-links
-3. **Projetos** são rastreados em `projetos/`
-4. **Decisões importantes** são guardadas em `decisoes/`
+3. **Skills** ficam em `skills/` e são carregadas automaticamente pelo nanobot
+4. **Templates** de conteúdo (LinkedIn, Instagram, email) ficam em `templates/`
 
 ### Frontmatter de Cada Nota
 
